@@ -48,7 +48,7 @@ export function markUpdateLaneFromFiberToRoot(sourceFiber) {
 }
 
 /**
- * 把更新添加到更新队列中
+ * 把更新添加到更新队列中，并返回根fiber
  * @param {*} fiber 
  * @param {*} queue 
  * @param {*} update 

@@ -49,18 +49,29 @@ function updateHostComponent(current, workInProgress) {
 function mountIndeterminateComponent(current, workInProgress, Component) {
   const props = workInProgress.pendingProps
   // const value = Component(props)
+  debugger
   const value = renderWithHooks(current, workInProgress, Component, props)
   workInProgress.tag = FunctionComponent
   reconcileChildren(current, workInProgress, value)
   return workInProgress.child
 }
+export function updateFunctionComponent(current, workInProgress, Component, nextProps) {
+  const nextChildren = renderWithHooks(current, workInProgress, Component, nextProps)
+  workInProgress.tag = FunctionComponent
+  reconcileChildren(current, workInProgress, nextChildren)
+  return workInProgress.child
+}
 export function beginWork(current, workInProgress) {
-  logger(' '.repeat(indent.number) + 'beginwork', workInProgress)
-  indent.number += 2
+  // logger(' '.repeat(indent.number) + 'beginwork', workInProgress)
+  // indent.number += 2
   switch(workInProgress.tag) {
     // 组件有两种，一种是函数组件，一种是类组件
     case IndeterminateComponent:
       return mountIndeterminateComponent(current, workInProgress, workInProgress.type)
+    case FunctionComponent:
+      const Component = workInProgress.type
+      const nextProps = workInProgress.pendingProps
+      return updateFunctionComponent(current, workInProgress, Component, nextProps)
     case HostRoot:
       return updateHostRoot(current, workInProgress)
     case HostComponent:

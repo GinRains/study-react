@@ -20,9 +20,18 @@ function reducer(state, action) {
 }
 function FunctionComp () {
   const [number, setNumber] = React.useReducer(reducer, 0)
+  let attrs = {id: 'btn'}
+  if(number == 6) {
+    delete attrs.id
+    attrs.style = {color: 'red'}
+  }
 
   return (
-    <button onClick={() => setNumber({ type: 'add', payload: 1})}>{number}</button>
+    <button {...attrs} onClick={() => {
+      setNumber({ type: 'add', payload: 1 })
+      setNumber({ type: 'add', payload: 2 })
+      setNumber({ type: 'add', payload: 3 })
+    }}>{number}</button>
   )
 }
 

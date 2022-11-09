@@ -34,6 +34,7 @@ function performConcurrentWorkOnRoot(root) {
 }
 function commitRoot(root) {
   const { finishedWork } = root
+  console.log('i', finishedWork)
   printFinishedWork(finishedWork)
   const subtreeHasEffects = (finishedWork.subtreeFlags & MutationMask) !== NoFlags
   const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags
