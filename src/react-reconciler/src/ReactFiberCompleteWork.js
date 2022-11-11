@@ -38,7 +38,6 @@ function updateHostComponent(current, workInProgress, type, newProps) {
   // 比较新老属性，收集有差异的属性 ['id', 'bnts' ]
   const updatePayload = prepareUpdate(instance, type, oldProps, newProps)
   workInProgress.updateQueue = updatePayload
-  console.log('aaa', workInProgress.updateQueue)
   if(updatePayload) {
     markUpdate(workInProgress)
   }

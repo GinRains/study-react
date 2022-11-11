@@ -1,6 +1,6 @@
 import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols'
 import { createFiberFromElement, createFiberFromText, createWorkInProgress } from './ReactFiber'
-import { Placement } from './ReactFiberFlags'
+import { ChildDeletion, Placement } from './ReactFiberFlags'
 import isArray from 'shared/isArray'
 
 /**
@@ -14,9 +14,28 @@ function createChildReconciler(shouldTrackSideEffects) {
     clone.sibling = null
     return clone
   }
+  function deleteChild(returnFiber, childToDelete) {
+    if(!shouldTrackSideEffects) return
+    const deletions = returnFiber.deletions
+    if(deletions === null) {
+      returnFiber.deletions = [childToDelete]
+      returnFiber.flags |= ChildDeletion
+    } else {
+      returnFiber.deletions.push(childToDelete)
+    }
+  }
+  function deleteRemainingChildren(returnFiber, currentFirstChild) {
+    if(!shouldTrackSideEffects) return
+    let childToDelete = currentFirstChild
+    while(childToDelete !== null) {
+      deleteChild(returnFiber, childToDelete)
+      childToDelete = childToDelete.sibling
+    }
+    return null
+  }
   /**
    * 
-   * @param {*} returnFiber 根fiber
+   * @param {*} returnFiber 父fiber
    * @param {*} currentFirstChild 
    * @param {*} element 新的虚拟DOM对象
    * @returns 返回新的第一个子fiber
@@ -24,13 +43,19 @@ function createChildReconciler(shouldTrackSideEffects) {
   function reconcileSingleElement(returnFiber, currentFirstChild, element) {
     const key = element.key
     let child = currentFirstChild
+    // 根据新的虚拟DOM，并比较老fiber生成新fiber
     while(child !== null) {
       if(child.key === key) {
         if(child.type === element.type) {
+          deleteRemainingChildren(returnFiber, child.sibling)
           const existing = useFiber(child, element.props)
           existing.return = returnFiber
           return existing
+        } else {
+          deleteRemainingChildren(returnFiber, child)
         }
+      } else {
+        deleteChild(returnFiber, child)
       }
       child = child.sibling
     }
@@ -72,18 +97,74 @@ function createChildReconciler(shouldTrackSideEffects) {
   }
   function placeChild(newFiber, newIdx) {
     newFiber.index = newIdx
-    if(shouldTrackSideEffects) {
+    if(shouldTrackSideEffects && newFiber.alternate === null) {
       newFiber.flags |= Placement
     }
   }
+  function updateElement(returnFiber, current, element) {
+    const elementType = element.type
+    if(current !== null) {
+      if(current.type === elementType) {
+        const existing = useFiber(current, element.props)
+        existing.return = returnFiber
+        return existing
+      }
+    }
+    const created = createFiberFromElement(element)
+    created.return = returnFiber
+    return created
+  }
+  function updateSlot(returnFiber, oldFiber, newChild) {
+    const key = oldFiber !== null ? oldFiber.key : null
+    if(newChild !== null && typeof newChild === 'object') {
+      switch(newChild.$$typeof) {
+        case REACT_ELEMENT_TYPE: {
+          if(newChild.key === key) {
+            return updateElement(returnFiber, oldFiber, newChild)
+          }
+        }
+        default:
+          return null
+      }
+    }
+    return null
+  }
   function reconcileChildrenArray(returnFiber, currentFirstChild, newChildren) {
-    let resultingFirstChild = null
+    let resultingFirstChild = null // 返回的第一个新儿子
     let previousNewFiber = null // 上一个新的fiber
-    let newIndex = 0
-    for(; newIndex < newChildren.length; newIndex++) {
-      const newFiber = createChild(returnFiber, newChildren[newIndex])
+    let newIdx = 0 // 用来遍历新的虚拟DOM的索引
+    let oldFiber = currentFirstChild // 第一个老fiber
+    let nextOldFiber = null // 下一个老fiber
+    // 开始第一轮循环，如果老fiber有值，新的虚拟DOM也有值
+    for(; oldFiber !== null && newIdx < newChildren.length; newIdx++) {
+      // 先暂存下一个老fiber
+      nextOldFiber = oldFiber.sibling
+      // 试图更新或者复用老fiber
+      const newFiber = updateSlot(returnFiber, oldFiber, newChildren[newIdx])
+      if(newFiber === null) {
+        break
+      }
+      if(shouldTrackSideEffects) {
+        // 没有成功复用老fiber，就删除老fiber
+        if(oldFiber && newFiber.alternate === null) {
+          deleteChild(returnFiber, oldFiber)
+        }
+      }
+      // 指定新fiber的位置
+      placeChild(newFiber, newIdx)
+      if(previousNewFiber === null) {
+        resultingFirstChild = newFiber
+      } else {
+        previousNewFiber.sibling = newFiber
+      }
+      previousNewFiber = newFiber
+      oldFiber = nextOldFiber
+    }
+
+    for(; newIdx < newChildren.length; newIdx++) {
+      const newFiber = createChild(returnFiber, newChildren[newIdx])
       if(newFiber === null) continue
-      placeChild(newFiber, newIndex)
+      placeChild(newFiber, newIdx)
       if(previousNewFiber === null) {
         resultingFirstChild = newFiber
       } else {

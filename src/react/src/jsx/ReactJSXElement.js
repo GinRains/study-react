@@ -24,14 +24,16 @@ function ReactElement(type, key, ref, props) {
     props
   }
 }
-export function jsxDEV(type, config) {
+// react 17之前老版的转换函数中，key是放在config里的，第三个参数放children
+// react 17之后新版的转换函数中，key是放在第三个参数，children是放在config里的
+export function jsxDEV(type, config, maybeKey) {
   let propName
   const props = {}
   let key = null
   let ref = null
 
-  if(hasValidKey(config)) {
-    key = config.key
+  if(maybeKey !== undefined) {
+    key = maybeKey
   }
   if(hasValidRef(config)) {
     ref = config.ref

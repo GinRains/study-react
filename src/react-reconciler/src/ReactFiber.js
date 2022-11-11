@@ -29,6 +29,7 @@ export function FiberNode(tag, pendingProps, key) {
   this.subtreeFlags = NoFlags // 子节点对应的副作用标识
   this.alternate = null
   this.index = 0
+  this.deletions = null
 }
 export function createFiber(tag, pendingProps, key) {
   return new FiberNode(tag, pendingProps, key)

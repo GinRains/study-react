@@ -1,10 +1,10 @@
 import { scheduleCallback } from 'scheduler'
-import { MutationMask, NoFlags, Placement, Update } from './ReactFiberFlags'
+import { ChildDeletion, MutationMask, NoFlags, Placement, Update } from './ReactFiberFlags'
 import { createWorkInProgress } from './ReactFiber'
 import { beginWork } from './ReactFiberBeginWork'
 import { completeWork } from './ReactFiberCompleteWork'
 import { commitMutationEffectsOnFiber } from './ReactFiberCommitWork'
-import { HostComponent, HostRoot, HostText } from './ReactWorkTags'
+import { FunctionComponent, HostComponent, HostRoot, HostText } from './ReactWorkTags'
 import { finishQueueingConcurrentUpdates } from './ReactFiberConcurrentUpdates'
 let workInProgress = null
 let workInProgressRoot = null
@@ -34,7 +34,6 @@ function performConcurrentWorkOnRoot(root) {
 }
 function commitRoot(root) {
   const { finishedWork } = root
-  console.log('i', finishedWork)
   printFinishedWork(finishedWork)
   const subtreeHasEffects = (finishedWork.subtreeFlags & MutationMask) !== NoFlags
   const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags
@@ -90,18 +89,28 @@ function completeUnitOfWork(unitOfWork) {
   } while(completedWork !== null)
 }
 
+/**
+ * 打印完成的工作
+ * @param {*} fiber 
+ */
 function printFinishedWork(fiber) {
+  const { flags, deletions } = fiber
+  if((flags & ChildDeletion) !== NoFlags) {
+    fiber.flags &= (~ChildDeletion)
+    console.log('子节点删除 ' + (deletions.map(fiber => `${fiber.type}#${fiber.memoizedProps.id}`).join(',')))
+  }
   let child = fiber.child
   while(child) {
     printFinishedWork(child)
     child = child.sibling
   }
   if(fiber.flags !== 0) {
-    console.log(getFlags(fiber.flags), getTag(fiber.tag), fiber.type.name, fiber.memoizedProps)
+    console.log(getFlags(fiber), getTag(fiber.tag), typeof fiber.type === 'function' ? fiber.type.name : fiber.type, fiber.memoizedProps)
   }
 }
 
-function getFlags(flags) {
+function getFlags(fiber) {
+  const { flags, deletions } = fiber
   if(flags === Placement) {
     return '插入'
   }
@@ -115,6 +124,8 @@ function getTag(tag) {
   switch(tag) {
     case HostRoot:
       return 'HostRoot'
+    case FunctionComponent:
+      return 'FunctionComponent'
     case HostComponent:
       return 'HostComponent'
     case HostText:

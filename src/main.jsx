@@ -14,24 +14,39 @@ import { createRoot } from 'react-dom/client'
 // }
 import * as React from 'react'
 
-function reducer(state, action) {
-  if(action.type === 'add') return state + action.payload
-  return state
-}
-function FunctionComp () {
-  const [number, setNumber] = React.useReducer(reducer, 0)
-  let attrs = {id: 'btn'}
-  if(number == 6) {
-    delete attrs.id
-    attrs.style = {color: 'red'}
-  }
+// function reducer(state, action) {
+//   if(action.type === 'add') return state + 1
+//   return state
+// }
+// function FunctionComp () {
+//   console.log('Func')
+//   // const [number, setNumber] = React.useReducer(reducer, 0)
+//   const [number, setNumber] = React.useState(0)
 
-  return (
-    <button {...attrs} onClick={() => {
-      setNumber({ type: 'add', payload: 1 })
-      setNumber({ type: 'add', payload: 2 })
-      setNumber({ type: 'add', payload: 3 })
-    }}>{number}</button>
+//   return (
+//     <button onClick={() => {
+//       // setNumber({ type: 'add', payload: 1 })
+//       setNumber(number + 1)
+//       setNumber(number + 2)
+//     }}>{number}</button>
+//   )
+// }
+function FunctionComp () {
+  // const [number, setNumber] = React.useReducer(reducer, 0)
+  const [number, setNumber] = React.useState(0)
+
+  return number === 0 ? (
+    <ul key="container" onClick={() => setNumber(number + 1)}>
+      <li key="A" id="A">A</li>
+      <li key="B" id="B">B</li>
+      <li key="C" id="C">C</li>
+    </ul>
+  ) : (
+    <ul key="container" onClick={() => setNumber(number + 1)}>
+      <li key="A" id="A2">A2</li>
+      <p key="B" id="B">B</p>
+      <li key="C" id="C2">C2</li>
+    </ul>
   )
 }
 
