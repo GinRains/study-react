@@ -1,13 +1,15 @@
 import { scheduleCallback } from 'scheduler'
-import { ChildDeletion, MutationMask, NoFlags, Placement, Update } from './ReactFiberFlags'
+import { ChildDeletion, MutationMask, NoFlags, Passive, Placement, Update } from './ReactFiberFlags'
 import { createWorkInProgress } from './ReactFiber'
 import { beginWork } from './ReactFiberBeginWork'
 import { completeWork } from './ReactFiberCompleteWork'
-import { commitMutationEffectsOnFiber } from './ReactFiberCommitWork'
+import { commitMutationEffectsOnFiber, commitPassiveUnmountEffects, commitPassiveMountEffects } from './ReactFiberCommitWork'
 import { FunctionComponent, HostComponent, HostRoot, HostText } from './ReactWorkTags'
 import { finishQueueingConcurrentUpdates } from './ReactFiberConcurrentUpdates'
 let workInProgress = null
 let workInProgressRoot = null
+let rootDoesHavePassiveEffect = false // 此根节点上有没有useEffect类似得副作用
+let rootWithPendingPassiveEffects = null // 具有useEffect副作用的根节点 FiberRootNode,根fiber.stateNode
 
 export function scheduleUpdateOnFiber (root) {
   // 确保调度执行root上的更新
@@ -32,14 +34,34 @@ function performConcurrentWorkOnRoot(root) {
   commitRoot(root)
   workInProgressRoot = null
 }
+function flushPassiveEffect() {
+  if(rootWithPendingPassiveEffects !== null) {
+    const root = rootWithPendingPassiveEffects
+    // 执行卸载副作用
+    commitPassiveUnmountEffects(root.current)
+    // 执行挂载副作用
+    commitPassiveMountEffects(root, root.current)
+  }
+}
 function commitRoot(root) {
   const { finishedWork } = root
-  printFinishedWork(finishedWork)
+  if ((finishedWork.subtreeFlags & Passive) !== NoFlags ||
+    (finishedWork.flags & Passive) !== NoFlags) {
+      if(!rootDoesHavePassiveEffect) {
+        rootDoesHavePassiveEffect = true
+        printFinishedWork(finishedWork)
+        scheduleCallback(flushPassiveEffect)
+      }
+  }
   const subtreeHasEffects = (finishedWork.subtreeFlags & MutationMask) !== NoFlags
   const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags
   // 如果自己有副作用或者子节点有副作用就进行提交DOM操作
   if(subtreeHasEffects || rootHasEffect) {
     commitMutationEffectsOnFiber(finishedWork, root)
+    if(rootDoesHavePassiveEffect) {
+      rootDoesHavePassiveEffect = false
+      rootWithPendingPassiveEffects = root
+    }
   }
   root.current = finishedWork
 }
