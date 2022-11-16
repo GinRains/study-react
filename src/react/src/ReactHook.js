@@ -15,3 +15,7 @@ export function useEffect(effect, deps) {
   const dispatcher = resolveDispatcher()
   return dispatcher.useEffect(effect, deps)
 }
+export function useLayoutEffect(effect, deps) {
+  const dispatcher = resolveDispatcher()
+  return dispatcher.useLayoutEffect(effect, deps)
+}
