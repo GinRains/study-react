@@ -1,4 +1,4 @@
-import { scheduleCallback } from 'scheduler'
+import { scheduleCallback, shouldYield, NormalPriority as NormalSchedulerPriority } from 'scheduler'
 import { ChildDeletion, MutationMask, NoFlags, Passive, Placement, Update } from './ReactFiberFlags'
 import { createWorkInProgress } from './ReactFiber'
 import { beginWork } from './ReactFiberBeginWork'
@@ -19,14 +19,14 @@ export function scheduleUpdateOnFiber (root) {
 function ensureRootIsScheduled(root) {
   if(workInProgressRoot) return
   workInProgressRoot = root
-  scheduleCallback(performConcurrentWorkOnRoot.bind(null, root))
+  scheduleCallback(NormalSchedulerPriority, performConcurrentWorkOnRoot.bind(null, root))
 }
 
 /**
  * 根据fiber构建fiber树，要创建真实的DOM节点，还需要吧真实的DOM节点插入容器
  * @param {*} root 
  */
-function performConcurrentWorkOnRoot(root) {
+function performConcurrentWorkOnRoot(root, timeout) {
   renderRootSync(root)
   // 开始进行提交阶段
   const finishedWork = root.current.alternate
@@ -51,7 +51,7 @@ function commitRoot(root) {
       if(!rootDoesHavePassiveEffect) {
         rootDoesHavePassiveEffect = true
         printFinishedWork(finishedWork)
-        scheduleCallback(flushPassiveEffect)
+        scheduleCallback(NormalSchedulerPriority, flushPassiveEffect)
       }
   }
   console.log('开始commit~~~')
@@ -80,6 +80,12 @@ function renderRootSync(root) {
   workLoopSync()
 }
 
+function workLoopConcurrent() {
+  // 如果有下一个要构建的fiber并且时间片没有过期
+  while(workInProgress !== null && !shouldYield()) {
+    performUnitOfWork(workInProgress)
+  }
+}
 function workLoopSync() {
   while(workInProgress !== null) {
     performUnitOfWork(workInProgress)
