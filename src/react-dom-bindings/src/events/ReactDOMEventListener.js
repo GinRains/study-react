@@ -1,6 +1,7 @@
 import getEventTarget from './getEventTarget'
 import { getClosestInstanceFromNode } from '../client/ReactDOMComponentTree'
 import { dispatchEventForPluginEventSystem } from './DOMPluginEventSystem'
+import { ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, getCurrentUpdatePriority, setCurrentUpdatePriority } from 'react-reconciler/src/ReactEventPriorities'
 
 export function createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags) {
   const listenerWrapper = dispatchDiscreteEvent
@@ -15,7 +16,14 @@ export function createEventListenerWrapperWithPriority(targetContainer, domEvent
  * @param {*} nativeEvent 原生事件
  */
 function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, nativeEvent) {
-  dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent)
+  // 在点击按钮的时候，需要设置更新优先级
+  const previousPriority = getCurrentUpdatePriority()
+  try {
+    setCurrentUpdatePriority(DiscreteEventPriority)
+    dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent)
+  } finally {
+    setCurrentUpdatePriority(previousPriority)
+  }
 }
 
 /**
@@ -29,4 +37,15 @@ export function dispatchEvent(domEventName, eventSystemFlags, targetContainer, n
   const nativeEventTarget = getEventTarget(nativeEvent)
   const targetInst = getClosestInstanceFromNode(nativeEventTarget)
   dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, targetInst, targetContainer)
+}
+
+export function getEventPriority(domEventName) {
+  switch(domEventName) {
+    case 'click':
+      return DiscreteEventPriority
+    case 'drag':
+      return ContinuousEventPriority
+    default:
+      return DefaultEventPriority
+  }
 }

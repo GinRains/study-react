@@ -1,4 +1,11 @@
-import { scheduleCallback, shouldYield, NormalPriority as NormalSchedulerPriority } from 'scheduler'
+import { 
+  scheduleCallback as Scheduler_scheduleCallback,
+  shouldYield,
+  ImmediatePriority as ImmediateSchedulerPriority,
+  UserBlockingPriority as UserBlockingSchedulerPriority,
+  NormalPriority as NormalSchedulerPriority,
+  IdlePriority as IdleSchedulerPriority
+} from './Scheduler'
 import { ChildDeletion, MutationMask, NoFlags, Passive, Placement, Update } from './ReactFiberFlags'
 import { createWorkInProgress } from './ReactFiber'
 import { beginWork } from './ReactFiberBeginWork'
@@ -6,20 +13,65 @@ import { completeWork } from './ReactFiberCompleteWork'
 import { commitMutationEffectsOnFiber, commitPassiveUnmountEffects, commitPassiveMountEffects, commitLayoutEffects } from './ReactFiberCommitWork'
 import { FunctionComponent, HostComponent, HostRoot, HostText } from './ReactWorkTags'
 import { finishQueueingConcurrentUpdates } from './ReactFiberConcurrentUpdates'
+import { NoLanes, markRootUpdated, getNextLanes, getHighestPriorityLane, SyncLane } from './ReactFiberLane'
+import { ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, getCurrentUpdatePriority, lanesToEventPriority, setCurrentUpdatePriority } from './ReactEventPriorities'
+import { getCurrentEventPriority } from 'react-dom-bindings/src/client/ReactDOMHostConfig'
+import { scheduleSyncCallback, flushSyncCallbacks } from './ReactFiberSyncTaskQueue'
 let workInProgress = null
 let workInProgressRoot = null
+let workInProgressRootRenderLanes = null
 let rootDoesHavePassiveEffect = false // 此根节点上有没有useEffect类似得副作用
 let rootWithPendingPassiveEffects = null // 具有useEffect副作用的根节点 FiberRootNode,根fiber.stateNode
 
-export function scheduleUpdateOnFiber (root) {
+export function scheduleUpdateOnFiber (root, fiber, lane) {
+  markRootUpdated(root, lane)
   // 确保调度执行root上的更新
   ensureRootIsScheduled(root)
 }
 
+// 在根上执行同步工作
+function performSyncWorkOnRoot(root) {
+  const lanes = getNextLanes(root)
+  renderRootSync(root, lanes)
+  const finishedWork = root.current.alternate
+  root.finishedWork = finishedWork
+  commitRoot(root)
+  return null
+}
+
 function ensureRootIsScheduled(root) {
+  // 获取当前优先级最高的车道
+  const nextLanes = getNextLanes(root, NoLanes)
+  let newCallbackPriority = getHighestPriorityLane(nextLanes)
+  // 如果新的优先级是同步的话
+  if(newCallbackPriority === SyncLane) {
+    // 先把performSyncWorkOnRoot添回到同步队列中
+    scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root))
+    // 再把flushSyncCallbacks放入微任务
+    queueMicrotask(flushSyncCallbacks)
+  } else {
+    let schedulerPriorityLevel
+    switch(lanesToEventPriority(nextLanes)) {
+      case DiscreteEventPriority:
+        schedulerPriorityLevel = ImmediateSchedulerPriority;
+        break;
+      case ContinuousEventPriority:
+        schedulerPriorityLevel = UserBlockingSchedulerPriority;
+        break;
+      case DefaultEventPriority:
+        schedulerPriorityLevel = NormalSchedulerPriority;
+        break;
+      case IdleEventPriority:
+        schedulerPriorityLevel = IdleSchedulerPriority;
+        break;
+      default:
+        schedulerPriorityLevel = NormalSchedulerPriority;
+        break;
+    }
+  }
   if(workInProgressRoot) return
   workInProgressRoot = root
-  scheduleCallback(NormalSchedulerPriority, performConcurrentWorkOnRoot.bind(null, root))
+  Scheduler_scheduleCallback(NormalSchedulerPriority, performConcurrentWorkOnRoot.bind(null, root))
 }
 
 /**
@@ -27,12 +79,16 @@ function ensureRootIsScheduled(root) {
  * @param {*} root 
  */
 function performConcurrentWorkOnRoot(root, timeout) {
-  renderRootSync(root)
+  const nextLanes = getNextLanes(root, NoLanes)
+  if(nextLanes === NoLanes) {
+    return null
+  }
+  renderRootSync(root, nextLanes)
   // 开始进行提交阶段
   const finishedWork = root.current.alternate
   root.finishedWork = finishedWork
   commitRoot(root)
-  workInProgressRoot = null
+  return null
 }
 function flushPassiveEffect() {
   console.log('下一个宏任务中flushPassiveEffect~~~')
@@ -45,13 +101,25 @@ function flushPassiveEffect() {
   }
 }
 function commitRoot(root) {
+  const previousUpdatePriority = getCurrentEventPriority()
+  try {
+    // 把当前的更新优先级设置为1
+    setCurrentUpdatePriority(DiscreteEventPriority)
+    commitRootImpl(root)
+  } finally {
+    setCurrentUpdatePriority(previousUpdatePriority)
+  }
+}
+function commitRootImpl(root) {
   const { finishedWork } = root
+  workInProgressRoot = null
+  workInProgressRootRenderLanes = null
   if ((finishedWork.subtreeFlags & Passive) !== NoFlags ||
     (finishedWork.flags & Passive) !== NoFlags) {
       if(!rootDoesHavePassiveEffect) {
         rootDoesHavePassiveEffect = true
         printFinishedWork(finishedWork)
-        scheduleCallback(NormalSchedulerPriority, flushPassiveEffect)
+        Scheduler_scheduleCallback(NormalSchedulerPriority, flushPassiveEffect)
       }
   }
   console.log('开始commit~~~')
@@ -71,12 +139,18 @@ function commitRoot(root) {
   }
   root.current = finishedWork
 }
-function prepareFreshStack(root) {
-  workInProgress = createWorkInProgress(root.current, null)
+function prepareFreshStack(root, renderLanes) {
+  if(root !== workInProgressRoot || workInProgressRootRenderLanes !== renderLanes) {
+    workInProgress = createWorkInProgress(root.current, null)
+  }
+  workInProgressRootRenderLanes = renderLanes
   finishQueueingConcurrentUpdates()
 }
-function renderRootSync(root) {
-  prepareFreshStack(root)
+function renderRootSync(root, renderLanes) {
+  if(root !== workInProgressRoot || workInProgressRootRenderLanes !== renderLanes) {
+    prepareFreshStack(root, renderLanes)
+  }
+
   workLoopSync()
 }
 
@@ -98,7 +172,7 @@ function workLoopSync() {
  */
 function performUnitOfWork(unitOfWork) {
   const current = unitOfWork.alternate
-  const next = beginWork(current, unitOfWork)
+  const next = beginWork(current, unitOfWork, workInProgressRootRenderLanes)
   unitOfWork.memoizedProps = unitOfWork.pendingProps
   if(next === null) {
     completeUnitOfWork(unitOfWork)
@@ -170,4 +244,13 @@ function getTag(tag) {
     default:
       return tag
   }
+}
+
+export function requestUpdateLane() {
+  const updateLane = getCurrentUpdatePriority()
+  if(updateLane !== NoLanes) {
+    return updateLane
+  }
+  const eventLane = getCurrentEventPriority()
+  return eventLane
 }
