@@ -41,7 +41,7 @@ port1.onmessage = performWorkUntilDeadline
  * @param {*} priorityLevel 优先级
  * @param {*} callback 
  */
-export function scheduleCallback(priorityLevel, callback) {
+function scheduleCallback(priorityLevel, callback) {
   // 获取当前时间
   const currentTime = getCurrentTime()
   // 此任务的开始时间
@@ -81,9 +81,9 @@ export function scheduleCallback(priorityLevel, callback) {
   return newTask
 }
 
-function flushWork(starTime) {
-  return workLoop()
-}
+// function flushWork(starTime) {
+//   return workLoop()
+// }
 function shouldYieldToHost() {
   const timeElapsed = getCurrentTime() - startTime
   if(timeElapsed < frameInterval) {
@@ -91,7 +91,7 @@ function shouldYieldToHost() {
   }
   return true
 }
-function workLoop() {
+function workLoop(startTime) {
   let currentTime = startTime
   currentTask = peek(taskQueue)
   while(currentTask !== null) {
@@ -152,7 +152,7 @@ function performWorkUntilDeadline() {
 
 export {
   scheduleCallback as unstable_scheduleCallback,
-  shouldYieldToHost as shouldYield,
+  shouldYieldToHost as unstable_shouldYield,
   ImmediatePriority as unstable_ImmediatePriority,
   UserBlockingPriority as unstable_UserBlockingPriority,
   NormalPriority as unstable_NormalPriority,

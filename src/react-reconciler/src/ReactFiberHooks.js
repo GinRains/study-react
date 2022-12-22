@@ -141,7 +141,6 @@ function dispatchSetState(fiber, queue, action) {
     next: null
   }
   
-  debugger
   if(fiber.lanes === NoLanes && (fiber.alternate === null || fiber.alternate.lanes === NoLanes)) {
     // 当你派发动作后，我立刻用上一次的状态和上一次的reducer计算新状态
     const { lastRenderedReducer, lastRenderedState } = queue
@@ -203,7 +202,9 @@ function mountReducer(reducer, initialArg) {
   hook.memoizedState = initialArg
   const queue = {
     pending: null,
-    dispatch: null
+    dispatch: null,
+    lastRenderedReducer: reducer,
+    lastRenderedState: initialArg
   }
   hook.queue = queue
   const dispatch = (queue.dispatch = dispatchReducerAction.bind(null, currentlyRenderingFiber, queue))

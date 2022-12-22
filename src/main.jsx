@@ -20,14 +20,12 @@ function reducer(state, action) {
 }
 // function FunctionComp () {
 //   console.log('Func')
-//   // const [number, setNumber] = React.useReducer(reducer, 0)
-//   const [number, setNumber] = React.useState(0)
+//   const [number, setNumber] = React.useReducer(reducer, 0)
+//   // const [number, setNumber] = React.useState(0)
 
 //   return (
 //     <button onClick={() => {
-//       // setNumber({ type: 'add', payload: 1 })
-//       setNumber(number + 1)
-//       setNumber(number + 2)
+//       setNumber({ type: 'add', payload: 1 })
 //     }}>{number}</button>
 //   )
 // }
@@ -89,4 +87,5 @@ function FunctionComp() {
 const ele = <FunctionComp />
 // console.log(ele)
 const root = createRoot(document.getElementById('root'))
+console.log('ele', ele)
 root.render(ele)

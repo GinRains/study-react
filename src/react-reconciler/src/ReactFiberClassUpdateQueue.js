@@ -1,7 +1,7 @@
 
 import { enqueueConcurrentClassUpdate } from './ReactFiberConcurrentUpdates'
 import assign from 'shared/assign'
-import { NoLanes, isSubsetOfLanes, mergeLanes } from './ReactFiberLane'
+import { NoLanes, isSubsetOfLanes, mergeLanes, NoLane } from './ReactFiberLane'
 export const UpdateState = 0
 
 export function initialUpdateQueue(fiber) {
@@ -92,7 +92,7 @@ export function processUpdateQueue(workInProgress, nextProps, renderLanes) {
         if (newLastBaseUpdate !== null) {
           const clone = {
             id: update.id,
-            lane: 0,
+            lane: NoLane,
             payload: update.payload
           }
           newLastBaseUpdate = newLastBaseUpdate.next = clone;
@@ -110,6 +110,7 @@ export function processUpdateQueue(workInProgress, nextProps, renderLanes) {
     queue.lastBaseUpdate = newLastBaseUpdate;
     workInProgress.lanes = newLanes;
     //本次渲染完会判断，此fiber上还有没有不为0的lane,如果有，会再次渲染
+    
     workInProgress.memoizedState = newState;
   }
 }

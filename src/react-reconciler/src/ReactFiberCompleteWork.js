@@ -8,12 +8,14 @@ function appendAllChildren(parent, workInProgress) {
   while(node) {
     if(node.tag === HostComponent || node.tag === HostText) {
       appendInitialChild(parent, node.stateNode)
-    } else if(node.child !== null) {
+    } else if(node.child !== null) { // 继续向下寻找原生节点或者文本节点
       node = node.child
       continue
     }
+    // 遍历完所有子节点
     if(node === workInProgress) return
     while(node.sibling === null) {
+      // 遍历完所有子节点
       if(node.return === null || node.return === workInProgress) {
         return
       }
@@ -85,7 +87,7 @@ function bubbleProperties(completedWork) {
   let subtreeFlags = NoFlags
   // 遍历当前fiber 的所有子节点，把所有的子节点的副作用，以及子节点的子节点的副作用全部合并起来
   let child = completedWork.child
-  if(child !== null) {
+  while (child !== null) {
     subtreeFlags |= child.subtreeFlags
     subtreeFlags |= child.flags
     child = child.sibling

@@ -14,6 +14,7 @@ import { renderWithHooks } from './ReactFiberHooks'
 function reconcileChildren(current, workInProgress, nextChildren) {
   // 如果此新fiber没有老fiber，说明此新fiber是新创建的
   if(current === null) {
+    
     workInProgress.child = mountChildFibers(workInProgress, null, nextChildren)
   } else {
     // 有老fiber的话，需要DOM-DIFF 拿老的子fiber链表和新的子虚拟DOM进行比较，进行最小化的更新
@@ -25,6 +26,8 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   cloneUpdateQueue(current, workInProgress)
   processUpdateQueue(workInProgress, nextProps, renderLanes)
   const nextState = workInProgress.memoizedState
+  console.log('work', workInProgress.updateQueue.shared.pending)
+  
   // nextChildren就是新的子虚拟DOM
   const nextChildren = nextState.element
   // 协调子节点  DOM-DIFF算法
@@ -75,6 +78,7 @@ export function beginWork(current, workInProgress, renderLanes) {
     case HostRoot:
       return updateHostRoot(current, workInProgress, renderLanes)
     case HostComponent:
+      console.log(workInProgress)
       return updateHostComponent(current, workInProgress, renderLanes)
     case HostText:
       return null

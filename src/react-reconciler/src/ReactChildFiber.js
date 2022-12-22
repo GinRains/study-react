@@ -72,6 +72,7 @@ function createChildReconciler(shouldTrackSideEffects) {
    */
   function placeSingleChild(newFiber) {
     if(shouldTrackSideEffects && newFiber.alternate === null) {
+      
       // 要在最后的提交阶段插入此节点  React渲染分成渲染(创建fiber树)和提交(更新真实DOM) 二个阶段
       newFiber.flags |= Placement
     }
@@ -97,6 +98,7 @@ function createChildReconciler(shouldTrackSideEffects) {
     return null
   }
   function placeChild(newFiber, lastPlacedIndex, newIdx) {
+    
     newFiber.index = newIdx
     if(!shouldTrackSideEffects) {
       return lastPlacedIndex
