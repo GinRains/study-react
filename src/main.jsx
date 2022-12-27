@@ -76,16 +76,31 @@ function reducer(state, action) {
 
 //   return (<button onClick={() => setNumber(number + 1)}>{number}</button>)
 // }
-
 function FunctionComp() {
-  const [number, setNumber] = React.useState(0)
-  return (
-    <button onClick={() => setNumber(number + 1)}>{number}</button>
-  )
+  console.log('FunctionComp')
+   const [numbers, setNumbers] = React.useState(new Array(10).fill('A'));
+   console.log('numbrs', numbers)
+  //  const divRef = React.useRef();
+   React.useEffect(() => {
+    //  setTimeout(() => {
+    //    divRef.current.click();
+    //  }, 10);
+    setTimeout(() => {}, 10)
+    setNumbers(numbers => numbers.map(item => item + 'B'))
+   }, []);
+   return (<div onClick={() => {
+     setNumbers(numbers => numbers.map(item => item + 'C'))
+   }}>{numbers.map((number, index) => <span key={index}>{number}</span>)}</div>)
 }
+// function FunctionComp() {
+//   const [number, setNumber] = React.useState(0)
+//   return <button onClick={() => {
+//     setNumber((number) => number + 1)
+//     setNumber((number) => number + 2)
+//   }}>{number}</button>
+// }
 
 const ele = <FunctionComp />
-// console.log(ele)
 const root = createRoot(document.getElementById('root'))
-console.log('ele', ele)
+// console.log('ele', ele)
 root.render(ele)

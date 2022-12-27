@@ -7,9 +7,9 @@ export function useReducer(reducer, initialArg) {
   const dispatcher = resolveDispatcher()
   return dispatcher.useReducer(reducer, initialArg)
 }
-export function useState(reducer, initialArg) {
+export function useState(initialState) {
   const dispatcher = resolveDispatcher()
-  return dispatcher.useState(reducer, initialArg)
+  return dispatcher.useState(initialState)
 }
 export function useEffect(effect, deps) {
   const dispatcher = resolveDispatcher()

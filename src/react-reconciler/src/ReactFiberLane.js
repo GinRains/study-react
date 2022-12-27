@@ -19,13 +19,18 @@ export function markRootUpdated(root, updateLane) {
   root.pendingLanes |= updateLane
 }
 
-export function getNextLanes(root) {
+export function getNextLanes(root, wipLanes) {
   // 先获取所有的有更新的车道
   const pendingLanes = root.pendingLanes
   if(pendingLanes === NoLanes) {
     return NoLanes
   }
   const nextLanes = getHighestPriorityLanes(pendingLanes)
+  if(wipLanes !== NoLane && wipLanes !== nextLanes) {
+    if(nextLanes > wipLanes) {
+      return wipLanes
+    }
+  }
   return nextLanes
 }
 

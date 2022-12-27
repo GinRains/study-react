@@ -4,7 +4,8 @@ import {
   ImmediatePriority as ImmediateSchedulerPriority,
   UserBlockingPriority as UserBlockingSchedulerPriority,
   NormalPriority as NormalSchedulerPriority,
-  IdlePriority as IdleSchedulerPriority
+  IdlePriority as IdleSchedulerPriority,
+  cancelCallback as Scheduler_cancelCallback
 } from './Scheduler'
 import { ChildDeletion, MutationMask, NoFlags, Passive, Placement, Update } from './ReactFiberFlags'
 import { createWorkInProgress } from './ReactFiber'
@@ -19,7 +20,7 @@ import { getCurrentEventPriority } from 'react-dom-bindings/src/client/ReactDOMH
 import { scheduleSyncCallback, flushSyncCallbacks } from './ReactFiberSyncTaskQueue'
 let workInProgress = null
 let workInProgressRoot = null
-let workInProgressRootRenderLanes = null
+let workInProgressRootRenderLanes = NoLanes
 let rootDoesHavePassiveEffect = false // 此根节点上有没有useEffect类似得副作用
 let rootWithPendingPassiveEffects = null // 具有useEffect副作用的根节点 FiberRootNode,根fiber.stateNode
 // 构建fiber树正在进行中
@@ -46,14 +47,24 @@ function performSyncWorkOnRoot(root) {
 }
 
 function ensureRootIsScheduled(root) {
+  const existingCallbackNode = root.callbackNode
   // 获取当前优先级最高的车道
-  const nextLanes = getNextLanes(root, NoLanes)
+  const nextLanes = getNextLanes(root, workInProgressRootRenderLanes)
   if(nextLanes === NoLanes) {
     return
   }
   let newCallbackPriority = getHighestPriorityLane(nextLanes)
+  const exitingCallbackPriority = root.callbackPriority
+  // 如果新的优先级和老的优先级一样，则可以进行批量更新
+  if(exitingCallbackPriority === newCallbackPriority) {
+    return
+  }
+  if(existingCallbackNode !== null) {
+    console.log('cancelCallback')
+    Scheduler_cancelCallback(existingCallbackNode)
+  }
   // 新的回调任务
-  let newCallbackNode
+  let newCallbackNode = null
   // 如果新的优先级是同步的话
   if(newCallbackPriority === SyncLane) {
     // 先把performSyncWorkOnRoot添回到同步队列中
@@ -84,6 +95,7 @@ function ensureRootIsScheduled(root) {
     newCallbackNode = Scheduler_scheduleCallback(schedulerPriorityLevel, performConcurrentWorkOnRoot.bind(null, root));
   }
   root.callbackNode = newCallbackNode
+  root.callbackPriority = newCallbackPriority
 
   // if(workInProgressRoot) return
   // workInProgressRoot = root
@@ -102,7 +114,6 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
   }
   // 所以说默认更新车道是同步的，不能启用
   const shouldTimeSlice = !includesBlockingLane(root, lanes) && (!didTimeout)
-  console.log('shouldTimeShlice',shouldTimeSlice )
   const exitStatus = shouldTimeSlice ? renderRootConcurrent(root, lanes) : renderRootSync(root, lanes)
 
   // 如果不是渲染中的话，那就说明渲染完了
@@ -126,7 +137,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
 }
 
 function renderRootConcurrent(root, lanes) {
-  if(workInProgress !== root || workInProgressRootRenderLanes !== lanes) {
+  if(workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
     prepareFreshStack(root, lanes)
   }
   workLoopConcurrent()
@@ -136,7 +147,7 @@ function renderRootConcurrent(root, lanes) {
   return workInProgressRootExitStatus
 }
 function flushPassiveEffect() {
-  console.log('下一个宏任务中flushPassiveEffect~~~')
+  // console.log('下一个宏任务中flushPassiveEffect~~~')
   if(rootWithPendingPassiveEffects !== null) {
     const root = rootWithPendingPassiveEffects
     // 执行卸载副作用
@@ -160,7 +171,7 @@ function commitRootImpl(root) {
   workInProgressRoot = null
   workInProgressRootRenderLanes = NoLanes
   root.callbackNode = null
-  root.newCallbackPriority = NoLane
+  root.callbackPriority = NoLane
   if ((finishedWork.subtreeFlags & Passive) !== NoFlags ||
     (finishedWork.flags & Passive) !== NoFlags) {
       if(!rootDoesHavePassiveEffect) {
@@ -169,14 +180,14 @@ function commitRootImpl(root) {
         Scheduler_scheduleCallback(NormalSchedulerPriority, flushPassiveEffect)
       }
   }
-  console.log('开始commit~~~')
+  // console.log('开始commit~~~')
   const subtreeHasEffects = (finishedWork.subtreeFlags & MutationMask) !== NoFlags
   const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags
   // 如果自己有副作用或者子节点有副作用就进行提交DOM操作
   if(subtreeHasEffects || rootHasEffect) {
-    console.log('DOM执行变更commitMutationEffectsOnFiber~~~')
+    // console.log('DOM执行变更commitMutationEffectsOnFiber~~~')
     commitMutationEffectsOnFiber(finishedWork, root)
-    console.log('DOM执行变更后commitLayoutEffects~~~')
+    // console.log('DOM执行变更后commitLayoutEffects~~~')
     // 执行Layout Effect
     commitLayoutEffects(finishedWork, root)
     if(rootDoesHavePassiveEffect) {
@@ -187,9 +198,7 @@ function commitRootImpl(root) {
   root.current = finishedWork
 }
 function prepareFreshStack(root, renderLanes) {
-  if(root !== workInProgressRoot || workInProgressRootRenderLanes !== renderLanes) {
-    workInProgress = createWorkInProgress(root.current, null)
-  }
+  workInProgress = createWorkInProgress(root.current, null)
   workInProgressRootRenderLanes = renderLanes
   workInProgressRoot = root
   finishQueueingConcurrentUpdates() // 把函数组件更新队列放在queue里
@@ -200,14 +209,15 @@ function renderRootSync(root, renderLanes) {
   }
 
   workLoopSync()
+  return RootCompleted
 }
 
 function workLoopConcurrent() {
   // 如果有下一个要构建的fiber并且时间片没有过期
   while(workInProgress !== null && !shouldYield()) {
-    sleep(6)
+    sleep(200)
     performUnitOfWork(workInProgress)
-    console.log('shouldYield', shouldYield(), workInProgress)
+    // console.log('shouldYield', shouldYield(), workInProgress)
   }
 }
 function workLoopSync() {

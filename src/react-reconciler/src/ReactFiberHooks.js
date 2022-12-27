@@ -119,7 +119,7 @@ function updateState() {
 }
 function mountState(initialState) {
   const hook = mountWorkInProgressHook()
-  hook.memoizedState = initialState
+  hook.memoizedState = hook.baseState = initialState
   const queue = {
     pending: null,
     dispatch: null,
@@ -194,7 +194,7 @@ function updateReducer(reducer) {
     } while(update !== null && update !== firstUpdate)
   }
 
-  hook.memoizedState = newState
+  hook.memoizedState = queue.lastRenderedState = newState
   return [hook.memoizedState, queue.dispatch]
 }
 function mountReducer(reducer, initialArg) {
@@ -228,8 +228,8 @@ function dispatchReducerAction(fiber, queue, action) {
 }
 function mountWorkInProgressHook() {
   const hook = {
-    memoizedState: null,
-    queue: null,
+    memoizedState: null, // hook的状态
+    queue: null, // 存放本hook的更新队列，循环列表
     next: null // 指向下一个hook，一个函数里可以有多个hook，它们会组成一个单向链表
   }
   if(workInProgressHook === null) {

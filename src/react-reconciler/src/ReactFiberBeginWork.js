@@ -26,7 +26,6 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   cloneUpdateQueue(current, workInProgress)
   processUpdateQueue(workInProgress, nextProps, renderLanes)
   const nextState = workInProgress.memoizedState
-  console.log('work', workInProgress.updateQueue.shared.pending)
   
   // nextChildren就是新的子虚拟DOM
   const nextChildren = nextState.element
@@ -78,7 +77,6 @@ export function beginWork(current, workInProgress, renderLanes) {
     case HostRoot:
       return updateHostRoot(current, workInProgress, renderLanes)
     case HostComponent:
-      console.log(workInProgress)
       return updateHostComponent(current, workInProgress, renderLanes)
     case HostText:
       return null

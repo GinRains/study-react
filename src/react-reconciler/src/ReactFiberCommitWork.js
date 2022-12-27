@@ -82,7 +82,7 @@ function commitReconciliationEffects(finishedWork) {
     // 进行插入操作，也就是把此fiber对应的真实DOM节点添加到父真实DOM节点上
     commitPlacement(finishedWork)
     // 把flags里的Placement去除
-    finishedWork.flags & ~Placement
+    finishedWork.flags &= ~Placement
   }
 }
 function isHostParent(fiber) {

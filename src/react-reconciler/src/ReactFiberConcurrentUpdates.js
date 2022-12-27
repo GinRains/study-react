@@ -1,3 +1,4 @@
+import { mergeLanes } from "./ReactFiberLane"
 import { HostRoot } from "./ReactWorkTags"
 
 const concurrentQueues = []
@@ -13,6 +14,7 @@ function enqueueUpdate(fiber, queue, update, lane) {
   concurrentQueues[concurrentQueueIndex++] = queue
   concurrentQueues[concurrentQueueIndex++] = update // 更新对象
   concurrentQueues[concurrentQueueIndex++] = lane // 更新对应的车道
+  fiber.lanes = mergeLanes(fiber.lanes, lane)
 }
 export function finishQueueingConcurrentUpdates() {
   const endIndex = concurrentQueueIndex
