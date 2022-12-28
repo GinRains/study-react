@@ -82,7 +82,7 @@ function commitReconciliationEffects(finishedWork) {
     // 进行插入操作，也就是把此fiber对应的真实DOM节点添加到父真实DOM节点上
     commitPlacement(finishedWork)
     // 把flags里的Placement去除
-    finishedWork.flags & ~Placement
+    finishedWork.flags &= ~Placement
   }
 }
 function isHostParent(fiber) {
@@ -138,7 +138,7 @@ function getHostSibling(fiber) {
     // 如果弟弟不是原生节点也不是文本节点
     while (node.tag !== HostComponent && node.tag !== HostText) {
       // 如果此节点是一个将要插入的新节点，找他的弟弟
-      if(node.falgs & Placement) {
+      if(node.flags & Placement) {
         continue sibling
       } else {
         node = node.child
