@@ -13,6 +13,8 @@ export const IdleHydrationLane = 0b0010000000000000000000000000000;
 export const IdleLane = 0b0100000000000000000000000000000;
 export const OffscreenLane = 0b1000000000000000000000000000000;
 const NonIdleLanes = 0b0001111111111111111111111111111;
+//没有时间戳
+export const NoTimestamp = -1;
 
 export function markRootUpdated(root, updateLane) {
   // pendingLanes 指的此根上等待生效的lane
@@ -61,4 +63,68 @@ export function includesBlockingLane(root, lanes) {
 
   const SyncDefaultLanes = InputContinuousLane | DefaultLane
   return (lanes & SyncDefaultLanes) !== NoLanes
+}
+
+function pickArbitraryLaneIndex(lanes) {
+  return 31 - Math.clz32(lanes)
+}
+
+function computeExpirationTime(lane, currentTime) {
+  switch(lane) {
+    case SyncLane:
+    case InputContinuousLane:
+      return currentTime + 250
+    case DefaultLane:
+      return currentTime + 5000
+    case IdleLane:
+    default:
+      return NoTimestamp
+  }
+}
+
+export function markStarvedLanesAsExpired(root, currentTime) {
+  const pendingLanes = root.pendingLanes
+  const expirationTimes = root.expirationTimes
+  let lanes = pendingLanes
+  while(lanes > 0) {
+    const index = pickArbitraryLaneIndex(lanes)
+    const lane = 1 << index
+    const expirationTime = expirationTimes[index]
+    if(expirationTime === NoTimestamp) {
+      expirationTimes[index] = computeExpirationTime(lane, currentTime)
+    } else if(expirationTime <= currentTime) {
+      root.expiredLanes |= lane
+    }
+    lanes &= ~lane
+  }
+}
+
+export function createLaneMap(initial) {
+  const laneMap = []
+  for(let i = 0; i < TotalLanes; i++) {
+    laneMap.push(initial)
+  }
+  return laneMap
+}
+
+export function includesExpiredLane(root, lanes) {
+  return (lanes & root.expiredLanes) !== NoLanes;
+}
+
+export function markRootFinished(root, remainingLanes) {
+  //pendingLanes根上所有的将要被渲染的车道 1和2
+  //remainingLanes 2
+  //noLongerPendingLanes指的是已经更新过的lane
+  const noLongerPendingLanes = root.pendingLanes & ~remainingLanes;
+  root.pendingLanes = remainingLanes;
+  const expirationTimes = root.expirationTimes
+  let lanes = noLongerPendingLanes;
+  while (lanes > 0) {
+    //获取最左侧的1的索引
+    const index = pickArbitraryLaneIndex(lanes);
+    const lane = 1 << index;
+    //清除已经计算过的车道的过期时间
+    expirationTimes[index] = NoTimestamp;
+    lanes &= ~lane;
+  }
 }

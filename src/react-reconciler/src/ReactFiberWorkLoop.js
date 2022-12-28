@@ -5,7 +5,8 @@ import {
   UserBlockingPriority as UserBlockingSchedulerPriority,
   NormalPriority as NormalSchedulerPriority,
   IdlePriority as IdleSchedulerPriority,
-  cancelCallback as Scheduler_cancelCallback
+  cancelCallback as Scheduler_cancelCallback,
+  now
 } from './Scheduler'
 import { ChildDeletion, MutationMask, NoFlags, Passive, Placement, Update } from './ReactFiberFlags'
 import { createWorkInProgress } from './ReactFiber'
@@ -14,7 +15,7 @@ import { completeWork } from './ReactFiberCompleteWork'
 import { commitMutationEffectsOnFiber, commitPassiveUnmountEffects, commitPassiveMountEffects, commitLayoutEffects } from './ReactFiberCommitWork'
 import { FunctionComponent, HostComponent, HostRoot, HostText } from './ReactWorkTags'
 import { finishQueueingConcurrentUpdates } from './ReactFiberConcurrentUpdates'
-import { NoLanes, markRootUpdated, getNextLanes, getHighestPriorityLane, SyncLane, includesBlockingLane, NoLane } from './ReactFiberLane'
+import { NoLanes, markRootUpdated, getNextLanes, getHighestPriorityLane, SyncLane, includesBlockingLane, NoLane, NoTimestamp, markStarvedLanesAsExpired, includesExpiredLane, markRootFinished, mergeLanes } from './ReactFiberLane'
 import { ContinuousEventPriority, DefaultEventPriority, DiscreteEventPriority, getCurrentUpdatePriority, lanesToEventPriority, setCurrentUpdatePriority } from './ReactEventPriorities'
 import { getCurrentEventPriority } from 'react-dom-bindings/src/client/ReactDOMHostConfig'
 import { scheduleSyncCallback, flushSyncCallbacks } from './ReactFiberSyncTaskQueue'
@@ -29,11 +30,13 @@ const RootInProgress = 0
 const RootCompleted = 5
 // 当渲染工作结束的时候当前的fiber树处于什么状态，默认进行中
 let workInProgressRootExitStatus = RootInProgress
+//保存当前的事件发生的时间
+let currentEventTime = NoTimestamp
 
-export function scheduleUpdateOnFiber (root, fiber, lane) {
+export function scheduleUpdateOnFiber (root, fiber, lane, eventTime) {
   markRootUpdated(root, lane)
   // 确保调度执行root上的更新
-  ensureRootIsScheduled(root)
+  ensureRootIsScheduled(root, eventTime)
 }
 
 // 在根上执行同步工作
@@ -46,8 +49,10 @@ function performSyncWorkOnRoot(root) {
   return null
 }
 
-function ensureRootIsScheduled(root) {
+function ensureRootIsScheduled(root, currentTime) {
   const existingCallbackNode = root.callbackNode
+  // 标记饿死的赛道
+  markStarvedLanesAsExpired(root, currentTime)
   // 获取当前优先级最高的车道
   const nextLanes = getNextLanes(root, workInProgressRootRenderLanes)
   if(nextLanes === NoLanes) {
@@ -112,8 +117,16 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
   if(lanes === NoLanes) {
     return null
   }
-  // 所以说默认更新车道是同步的，不能启用
-  const shouldTimeSlice = !includesBlockingLane(root, lanes) && (!didTimeout)
+  //如果不包含阻塞的车道，并且没有超时，就可以并行渲染,就是启用时间分片
+  //所以说默认更新车道是同步的,不能启用时间分片
+  //是否不包含阻塞车道
+  const nonIncludesBlockingLane = !includesBlockingLane(root, lanes)
+  //是否不包含过期的车道
+  const nonIncludesExpiredLane = !includesExpiredLane(root, lanes)
+  //时间片没有过期
+  const nonTimeout = !didTimeout;
+  //三个变量都是真，才能进行时间分片，也就是进行并发渲染，也就是可以中断执行
+  const shouldTimeSlice = nonIncludesBlockingLane && nonIncludesExpiredLane && nonTimeout
   const exitStatus = shouldTimeSlice ? renderRootConcurrent(root, lanes) : renderRootSync(root, lanes)
 
   // 如果不是渲染中的话，那就说明渲染完了
@@ -172,6 +185,9 @@ function commitRootImpl(root) {
   workInProgressRootRenderLanes = NoLanes
   root.callbackNode = null
   root.callbackPriority = NoLane
+  // 统计剩下的车道
+  const remainingLanes = mergeLanes(finishedWork.lanes, finishedWork.childLanes)
+  markRootFinished(root, remainingLanes)
   if ((finishedWork.subtreeFlags & Passive) !== NoFlags ||
     (finishedWork.flags & Passive) !== NoFlags) {
       if(!rootDoesHavePassiveEffect) {
@@ -196,6 +212,8 @@ function commitRootImpl(root) {
     }
   }
   root.current = finishedWork
+  // 在提交之后，因为根上可能会有跳过的更新，所以需要重新再次调度
+  ensureRootIsScheduled(root, now())
 }
 function prepareFreshStack(root, renderLanes) {
   workInProgress = createWorkInProgress(root.current, null)
@@ -259,6 +277,11 @@ function completeUnitOfWork(unitOfWork) {
   if(workInProgressRootExitStatus === RootInProgress) {
     workInProgressRootExitStatus = RootCompleted
   }
+}
+
+export function requestEventTime() {
+  currentEventTime = now()
+  return currentEventTime;//performance.now()
 }
 
 /**

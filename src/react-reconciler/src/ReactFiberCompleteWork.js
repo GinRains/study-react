@@ -1,8 +1,12 @@
 import logger, { indent } from "shared/logger"
 import { HostComponent, HostText, HostRoot, FunctionComponent } from "./ReactWorkTags"
 import { createTextInstance, createInstance, appendInitialChild, finalizeInitialChildren, prepareUpdate } from 'react-dom-bindings/src/client/ReactDOMHostConfig'
-import { NoFlags, Update } from "./ReactFiberFlags"
+import { NoFlags, Update, Ref } from "./ReactFiberFlags"
+import { NoLanes, mergeLanes } from './ReactFiberLane';
 
+function markRef(workInProgress) {
+  workInProgress.flags |= Ref
+}
 function appendAllChildren(parent, workInProgress) {
   let node = workInProgress.child
   while(node) {
@@ -62,12 +66,18 @@ export function completeWork(current, workInProgress) {
       // 如果老fiber存在，并且老fiber上存在DOM节点，要走更新逻辑
       if(current !== null && workInProgress.stateNode !== null) {
         updateHostComponent(current, workInProgress, type, newProps)
+        if(current.ref !== workInProgress.ref !== null) {
+          markRef(workInProgress)
+        }
       } else {
         const instance = createInstance(type, newProps, workInProgress)
         // 把所有的儿子都挂载到自己身上
         workInProgress.stateNode = instance
         appendAllChildren(instance, workInProgress)
         finalizeInitialChildren(instance, type, newProps)
+        if(workInProgress.ref !== null) {
+          markRef(workInProgress)
+        }
       }
       bubbleProperties(workInProgress)
       break
@@ -84,13 +94,16 @@ export function completeWork(current, workInProgress) {
 }
 
 function bubbleProperties(completedWork) {
+  let newChildLanes = NoLanes
   let subtreeFlags = NoFlags
   // 遍历当前fiber 的所有子节点，把所有的子节点的副作用，以及子节点的子节点的副作用全部合并起来
   let child = completedWork.child
   while (child !== null) {
+    newChildLanes = mergeLanes(newChildLanes, mergeLanes(child.lanes, child.childLanes))
     subtreeFlags |= child.subtreeFlags
     subtreeFlags |= child.flags
     child = child.sibling
   }
+  completedWork.childLanes = newChildLanes
   completedWork.subtreeFlags = subtreeFlags
 }

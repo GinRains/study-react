@@ -76,22 +76,22 @@ function reducer(state, action) {
 
 //   return (<button onClick={() => setNumber(number + 1)}>{number}</button>)
 // }
-function FunctionComp() {
-  console.log('FunctionComp')
-   const [numbers, setNumbers] = React.useState(new Array(10).fill('A'));
-   console.log('numbrs', numbers)
-  //  const divRef = React.useRef();
-   React.useEffect(() => {
-    //  setTimeout(() => {
-    //    divRef.current.click();
-    //  }, 10);
-    setTimeout(() => {}, 10)
-    setNumbers(numbers => numbers.map(item => item + 'B'))
-   }, []);
-   return (<div onClick={() => {
-     setNumbers(numbers => numbers.map(item => item + 'C'))
-   }}>{numbers.map((number, index) => <span key={index}>{number}</span>)}</div>)
-}
+// function FunctionComp() {
+//    const [numbers, setNumbers] = React.useState(new Array(10).fill('A'));
+//    console.log('numbers', numbers)
+//    const divRef = React.useRef();
+//    React.useEffect(() => {
+//     console.log('ref', divRef.current)
+//      setTimeout(() => {
+//        divRef.current.click();
+//      }, 10);
+//     setTimeout(() => {}, 10)
+//     setNumbers(numbers => numbers.map(item => item + 'B'))
+//    }, []);
+//    return (<div ref={ina => (divRef.current = ina)} onClick={() => {
+//      setNumbers(numbers => numbers.map(item => item + 'C'))
+//    }}>{numbers.map((number, index) => <span key={index}>{number}</span>)}</div>)
+// }
 // function FunctionComp() {
 //   const [number, setNumber] = React.useState(0)
 //   return <button onClick={() => {
@@ -99,6 +99,34 @@ function FunctionComp() {
 //     setNumber((number) => number + 2)
 //   }}>{number}</button>
 // }
+let counter = 0;
+let timer;
+let bCounter = 0;
+let cCounter = 0;
+function FunctionComp() {
+  const [numbers, setNumbers] = React.useState(new Array(50).fill('A'));
+  const divRef = React.useRef();
+  const updateB = (numbers) => new Array(50).fill(numbers[0] + 'B')
+  updateB.id = 'updateB' + (bCounter++);
+  const updateC = (numbers) => new Array(50).fill(numbers[0] + 'C')
+  updateC.id = 'updateC' + (cCounter++);
+  React.useEffect(() => {
+    timer = setInterval(() => {
+      divRef.current.click();
+      if (counter++ === 0) {
+        setNumbers(updateB)
+      }
+      divRef.current.click();
+      if (counter++ > 10) {
+        clearInterval(timer)
+      }
+    });
+  }, []);
+  return (<div ref={divRef} onClick={() => {
+    setNumbers(updateC)}
+  }>
+    {numbers.map((number, index) => <span key={index}>{number}</span>)}</ div>)
+}
 
 const ele = <FunctionComp />
 const root = createRoot(document.getElementById('root'))

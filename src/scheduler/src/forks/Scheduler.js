@@ -162,5 +162,6 @@ export {
   NormalPriority as unstable_NormalPriority,
   LowPriority as unstable_LowPriority,
   IdlePriority as unstable_IdlePriority,
-  unstable_cancelCallback
+  unstable_cancelCallback,
+  getCurrentTime as now
 }

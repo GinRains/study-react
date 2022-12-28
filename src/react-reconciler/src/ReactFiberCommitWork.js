@@ -1,5 +1,5 @@
 import { appendChild, insertBefore, commitUpdate, removeChild } from "react-dom-bindings/src/client/ReactDOMHostConfig";
-import { MutationMask, Passive, Placement, Update, LayoutMask } from "./ReactFiberFlags";
+import { MutationMask, Passive, Placement, Update, LayoutMask, Ref } from "./ReactFiberFlags";
 import { HostRoot, HostComponent, HostText, FunctionComponent } from "./ReactWorkTags";
 import { HasEffect as HookHasEffect, Passive as HookPassive, Layout as HookLayout } from './ReactHookEffectTags'
 
@@ -82,7 +82,7 @@ function commitReconciliationEffects(finishedWork) {
     // 进行插入操作，也就是把此fiber对应的真实DOM节点添加到父真实DOM节点上
     commitPlacement(finishedWork)
     // 把flags里的Placement去除
-    finishedWork.flags &= ~Placement
+    finishedWork.flags & ~Placement
   }
 }
 function isHostParent(fiber) {
@@ -168,6 +168,17 @@ function commitPlacement(finishedWork) {
       break
   }
 }
+function commitAttachRef(finishedWork) {
+  const ref = finishedWork.ref
+  if(ref !== null) {
+    const instance = finishedWork.stateNode
+    if(typeof ref === 'function') {
+      ref(instance)
+    } else {
+      ref.current = instance
+    }
+  }
+}
 /**
  * 遍历fiber树，执行fiber上的副作用
  * @param {*} finishedWork fiber节点
@@ -200,6 +211,9 @@ export function commitMutationEffectsOnFiber(finishedWork, root) {
       recursivelyTraverseMutationEffects(root, finishedWork)
       // 再处理自己身上的副作用
       commitReconciliationEffects(finishedWork)
+      if(flags & Ref) {
+        commitAttachRef(finishedWork)
+      }
       if(flags & Update) {
         const instance = finishedWork.stateNode
         if(instance !== null) {

@@ -4,6 +4,7 @@ import { processUpdateQueue, cloneUpdateQueue } from './ReactFiberClassUpdateQue
 import { mountChildFibers, reconcileChildFibers } from './ReactChildFiber'
 import { shouldSetTextContent } from 'react-dom-bindings/src/client/ReactDOMHostConfig'
 import { renderWithHooks } from './ReactFiberHooks'
+import { NoLane, NoLanes } from './ReactFiberLane'
 
 /**
  * 根据新的虚拟DOM生成新的fiber链表
@@ -33,7 +34,7 @@ function updateHostRoot(current, workInProgress, renderLanes) {
   reconcileChildren(current, workInProgress, nextChildren)
   return workInProgress.child
 }
-function updateHostComponent(current, workInProgress) {
+function updateHostComponent(current, workInProgress, renderLanes) {
   const { type, pendingProps: nextProps } = workInProgress
   let nextChildren = nextProps.children
   // 判断当前虚拟DOM的儿子是不是一个文本独生子
@@ -50,22 +51,23 @@ function updateHostComponent(current, workInProgress) {
  * @param {*} workInProgress 新fiber
  * @param {*} component 函数组件
  */
-function mountIndeterminateComponent(current, workInProgress, Component) {
+function mountIndeterminateComponent(current, workInProgress, Component, renderLanes) {
   const props = workInProgress.pendingProps
   // const value = Component(props)
-  const value = renderWithHooks(current, workInProgress, Component, props)
+  const value = renderWithHooks(current, workInProgress, Component, props, renderLanes)
   workInProgress.tag = FunctionComponent
   reconcileChildren(current, workInProgress, value)
   return workInProgress.child
 }
-export function updateFunctionComponent(current, workInProgress, Component, nextProps) {
-  const nextChildren = renderWithHooks(current, workInProgress, Component, nextProps)
+export function updateFunctionComponent(current, workInProgress, Component, nextProps, renderLanes) {
+  const nextChildren = renderWithHooks(current, workInProgress, Component, nextProps, renderLanes)
   reconcileChildren(current, workInProgress, nextChildren)
   return workInProgress.child
 }
 export function beginWork(current, workInProgress, renderLanes) {
   // logger(' '.repeat(indent.number) + 'beginwork', workInProgress)
   // indent.number += 2
+  workInProgress.lanes = NoLanes
   switch(workInProgress.tag) {
     // 组件有两种，一种是函数组件，一种是类组件
     case IndeterminateComponent:

@@ -32,6 +32,8 @@ export function FiberNode(tag, pendingProps, key) {
   this.index = 0
   this.deletions = null
   this.lanes = NoLanes
+  this.childLanes = NoLanes
+  this.ref = null
 }
 export function createFiber(tag, pendingProps, key) {
   return new FiberNode(tag, pendingProps, key)
