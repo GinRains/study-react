@@ -89,7 +89,7 @@ function jsxDEV(type, config, maybeKey) {
 
   
 
-![fiber架构](.\static\img\fiber.png)
+![fiber架构](https://github.com/GinRains/study-react/blob/main\static\img\fiber.png)
 
 [^图解]: FiberRootNode指的是根组件div#root，HostRootFiber是根组件的fiber节点，他的alternate指向新的fiber节点，HostRootFiber的child是div对应的fiber节点，div的fiber节点return指向的是他的父亲，也就是div#root的新fiber节点
 
@@ -101,17 +101,17 @@ function jsxDEV(type, config, maybeKey) {
 
 - 函数组件fiber的**updateQueue**指向的是**Effect循环链表**
 
-  ![](.\static\img\functionFiber.png)
+  ![](https://github.com/GinRains/study-react/blob/main\static\img\functionFiber.png)
 
 # 事件机制
 
 - react-dom-bindings模块
 - 事件登记（把定义的事件存入**allNativeEvents**中
 
-![](.\static\img\register.png)
+![](https://github.com/GinRains/study-react/blob/main\static\img\register.png)
 
 - 事件绑定（**listenToAllSupportedEvents**
 
-![](.\static\img\bind.png)
+![](https://github.com/GinRains/study-react/blob/main\static\img\bind.png)
 
 # 任务调度（待补充
