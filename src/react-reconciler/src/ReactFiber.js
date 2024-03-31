@@ -10,8 +10,8 @@ import { NoLanes } from './ReactFiberLane'
  * @param {*} key 唯一标识
  */
 export function FiberNode(tag, pendingProps, key) {
-  this.tag = tag
-  this.key = key
+  this.tag = tag // fiber 标识，根组件是3
+  this.key = key // 用户定义的key
   this.type = null // 来自于虚拟DOM的类型，span、h1
   this.stateNode = null // 此fiber对应的真实DOM节点 h1 => 真实的h1DOM
 
@@ -28,12 +28,12 @@ export function FiberNode(tag, pendingProps, key) {
 
   this.flags = NoFlags // 副作用的标识
   this.subtreeFlags = NoFlags // 子节点对应的副作用标识
-  this.alternate = null
-  this.index = 0
-  this.deletions = null
-  this.lanes = NoLanes
-  this.childLanes = NoLanes
-  this.ref = null
+  this.alternate = null // 当前fiber的新或者旧fiber
+  this.index = 0 // 默认孩子节点的所引
+  this.deletions = null // 是否有需要删除的子元素
+  this.lanes = NoLanes // 优先级
+  this.childLanes = NoLanes // 子元素的优先级
+  this.ref = null // 真实DOM
 }
 export function createFiber(tag, pendingProps, key) {
   return new FiberNode(tag, pendingProps, key)
