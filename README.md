@@ -101,17 +101,17 @@ function jsxDEV(type, config, maybeKey) {
 
 - 函数组件fiber的**updateQueue**指向的是**Effect循环链表**
 
-  ![](./static/img/functionFiber.png)
+  ![fcfiber结构](./static/img/functionFiber.png)
 
 # 事件机制
 
 - react-dom-bindings模块
 - 事件登记（把定义的事件存入**allNativeEvents**中
 
-![](./static/img/register.png)
+![event登记](./static/img/register.png)
 
 - 事件绑定（**listenToAllSupportedEvents**
 
-![](./static/img/bind.png)
+![event绑定](./static/img/bind.png)
 
 # 任务调度（待补充
